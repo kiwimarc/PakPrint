@@ -89,6 +89,91 @@ Printeren skal kunne modtage print fra telefonen (AirPrint på iPhone, Mopria el
 
 ---
 
+## Adgang overalt med Tailscale (anbefalet)
+
+Uden Tailscale virker PakPrint kun, når telefonen er på samme Wi-Fi som computeren. Med Tailscale virker den overalt, også på mobildata, uden at åbne noget i routeren. Kun dine egne enheder kan se appen. Tailscale er gratis til privat brug.
+
+### 1. Installer Tailscale på computeren
+
+1. Hent Tailscale fra [tailscale.com/download](https://tailscale.com/download), og installer det.
+2. Klik på Tailscale-ikonet ved uret, og log ind (fx med en Google- eller Microsoft-konto).
+3. **Windows:** slå **Run unattended** til i Tailscale-menuen (under Preferences). Så kører Tailscale videre, også når du ikke er logget ind på Windows.
+
+### 2. Installer Tailscale på telefonen
+
+1. Hent Tailscale fra Google Play eller App Store.
+2. Log ind med **samme konto** som på computeren, og slå forbindelsen til.
+
+Telefonen og computeren er nu på dit eget private netværk ("tailnet").
+
+### 3. Giv PakPrint en fast https-adresse (Tailscale Serve)
+
+Start PakPrint som normalt (`python app.py`). Kør derefter i et andet terminalvindue:
+
+```powershell
+tailscale serve --bg 5000
+```
+
+Første gang åbner Tailscale en side i browseren, hvor du skal godkende HTTPS for dit tailnet. Godkend, og kør kommandoen igen.
+
+Kommandoen viser din adresse, fx:
+
+```
+https://produktion-pc.tail1234.ts.net
+```
+
+`--bg` betyder, at det kører videre i baggrunden, også efter genstart. Du skal kun gøre det én gang.
+
+### 4. Gem den på telefonen
+
+Åbn adressen i Chrome eller Safari på telefonen, log ind med `APP_PASSWORD`, og vælg **Føj til hjemmeskærm**.
+
+### 5. (Valgfrit) Gør appen usynlig på dit Wi-Fi
+
+Når du bruger Tailscale Serve, behøver appen ikke at være synlig for andre på netværket. Sæt i `.env`:
+
+```
+HOST=127.0.0.1
+```
+
+Så kan appen kun nås gennem Tailscale-adressen.
+
+### Nyttige kommandoer
+
+```powershell
+tailscale serve status   # vis hvad der deles, og på hvilken adresse
+tailscale serve reset    # stop delingen
+```
+
+> Brug **ikke** `tailscale funnel`. Den gør appen offentlig på internettet for alle.
+
+### Husk
+
+* Computeren skal være tændt og må ikke gå i dvale, og PakPrint skal køre.
+* Tailscale skal være slået til på telefonen, når du vil printe.
+
+---
+
+## Fejlfinding
+
+**Telefonen viser `ERR_TOO_MANY_RETRIES`, og der kommer intet i loggen (Android 17, fx Pixel)**
+Android 17 blokerer apps fra det lokale netværk, til de får lov. Gå til *Indstillinger → Apps → Chrome → Tilladelser → Enheder i nærheden → Tillad*. Gør det samme for andre browsere. Kan også ske via Tailscale.
+
+**Virker på computeren, men ikke fra telefonen på samme Wi-Fi (Windows)**
+* Netværket skal stå som *Privat*: Indstillinger → Netværk og internet → Wi-Fi.
+* Åbn porten i PowerShell som administrator:
+  `New-NetFirewallRule -DisplayName "PakPrint" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow -Profile Private`
+* Telefonen skal være på samme Wi-Fi og ikke på et gæstenet.
+* Skriv `http://` foran adressen.
+
+**Tjek om appen lytter**
+`netstat -ano | findstr :5000` skal vise `LISTENING`.
+
+**Gunicorn virker ikke på Windows**
+Brug `python app.py`, eller `pip install waitress` og `waitress-serve --listen=0.0.0.0:5000 app:app`.
+
+---
+
 ## Teknisk
 
 * Python / Flask, PDF med `fpdf2` (laves i hukommelsen – intet gemmes på disk).
